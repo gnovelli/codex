@@ -864,7 +864,7 @@ export class AgentLoop {
               attempt < MAX_RETRIES
             ) {
               log(
-                `OpenAI request failed (attempt ${attempt}/${MAX_RETRIES}), retrying...`,
+                `${this.provider} request failed (attempt ${attempt}/${MAX_RETRIES}), retrying...`,
               );
               continue;
             }
@@ -912,7 +912,7 @@ export class AgentLoop {
                   }
                 }
                 log(
-                  `OpenAI rate limit exceeded (attempt ${attempt}/${MAX_RETRIES}), retrying in ${Math.round(
+                  `${this.provider} rate limit exceeded (attempt ${attempt}/${MAX_RETRIES}), retrying in ${Math.round(
                     delayMs,
                   )} ms...`,
                 );
@@ -987,7 +987,7 @@ export class AgentLoop {
                         `Message: ${errCtx.message || "unknown"}`,
                       ].join(", ");
 
-                      return `⚠️  OpenAI rejected the request${
+                      return `⚠️  ${this.provider} rejected the request${
                         reqId ? ` (request ID: ${reqId})` : ""
                       }. Error details: ${errorDetails}. Please verify your settings and try again.`;
                     })(),
@@ -1162,7 +1162,7 @@ export class AgentLoop {
               const waitMs =
                 RATE_LIMIT_RETRY_WAIT_MS * 2 ** (streamRetryAttempt - 1);
               log(
-                `OpenAI stream rate‑limited – retry ${streamRetryAttempt}/${MAX_STREAM_RETRIES} in ${waitMs} ms`,
+                `${this.provider} stream rate‑limited – retry ${streamRetryAttempt}/${MAX_STREAM_RETRIES} in ${waitMs} ms`,
               );
 
               // Give the server a breather before retrying.
@@ -1263,7 +1263,10 @@ export class AgentLoop {
                 content: [
                   {
                     type: "input_text",
-                    text: `\u26a0 Insufficient quota: ${err instanceof Error && err.message ? err.message.trim() : "No remaining quota."} Manage or purchase credits at https://platform.openai.com/account/billing.`,
+                    text:
+                      this.provider.toLowerCase() === "openai"
+                        ? `\u26a0 Insufficient quota: ${err instanceof Error && err.message ? err.message.trim() : "No remaining quota."} Manage or purchase credits at https://platform.openai.com/account/billing.`
+                        : `\u26a0 Insufficient quota: ${err instanceof Error && err.message ? err.message.trim() : "No remaining quota."} Manage or purchase credits in your provider's dashboard.`,
                   },
                 ],
               });
@@ -1464,7 +1467,7 @@ export class AgentLoop {
       if (isNetworkOrServerError) {
         try {
           const msgText =
-            "⚠️  Network error while contacting OpenAI. Please check your connection and try again.";
+            `⚠️  Network error while contacting ${this.provider}. Please check your connection and try again.`;
           this.onItem({
             id: `error-${Date.now()}`,
             type: "message",
@@ -1529,7 +1532,7 @@ export class AgentLoop {
             }`,
           ].join(", ");
 
-          const msgText = `⚠️  OpenAI rejected the request${
+          const msgText = `⚠️  ${this.provider} rejected the request${
             reqId ? ` (request ID: ${reqId})` : ""
           }. Error details: ${errorDetails}. Please verify your settings and try again.`;
 
