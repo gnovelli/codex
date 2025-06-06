@@ -22,6 +22,7 @@ import {
 } from "../config.js";
 import { log } from "../logger/log.js";
 import { parseToolCallArguments } from "../parsers.js";
+import { providers } from "../providers.js";
 import { responsesCreateViaChatCompletions } from "../responses.js";
 import {
   ORIGIN,
@@ -45,6 +46,15 @@ const RATE_LIMIT_RETRY_WAIT_MS = parseInt(
 
 // See https://github.com/openai/openai-node/tree/v4?tab=readme-ov-file#configuring-an-https-agent-eg-for-proxies
 const PROXY_URL = process.env["HTTPS_PROXY"];
+
+const PROVIDER_BILLING_URLS: Record<string, string> = {
+  openai: "https://platform.openai.com/account/billing",
+  azure: "https://learn.microsoft.com/azure/ai-services/openai/how-to/manage-costs",
+};
+
+function providerName(provider: string): string {
+  return providers[provider.toLowerCase()]?.name ?? provider;
+}
 
 export type CommandConfirmation = {
   review: ReviewDecision;
@@ -864,7 +874,7 @@ export class AgentLoop {
               attempt < MAX_RETRIES
             ) {
               log(
-                `OpenAI request failed (attempt ${attempt}/${MAX_RETRIES}), retrying...`,
+                `${providerName(this.provider)} request failed (attempt ${attempt}/${MAX_RETRIES}), retrying...`,
               );
               continue;
             }
@@ -912,7 +922,7 @@ export class AgentLoop {
                   }
                 }
                 log(
-                  `OpenAI rate limit exceeded (attempt ${attempt}/${MAX_RETRIES}), retrying in ${Math.round(
+                  `${providerName(this.provider)} rate limit exceeded (attempt ${attempt}/${MAX_RETRIES}), retrying in ${Math.round(
                     delayMs,
                   )} ms...`,
                 );
@@ -987,7 +997,7 @@ export class AgentLoop {
                         `Message: ${errCtx.message || "unknown"}`,
                       ].join(", ");
 
-                      return `⚠️  OpenAI rejected the request${
+                      return `⚠️  ${providerName(this.provider)} rejected the request${
                         reqId ? ` (request ID: ${reqId})` : ""
                       }. Error details: ${errorDetails}. Please verify your settings and try again.`;
                     })(),
@@ -1162,7 +1172,7 @@ export class AgentLoop {
               const waitMs =
                 RATE_LIMIT_RETRY_WAIT_MS * 2 ** (streamRetryAttempt - 1);
               log(
-                `OpenAI stream rate‑limited – retry ${streamRetryAttempt}/${MAX_STREAM_RETRIES} in ${waitMs} ms`,
+                `${providerName(this.provider)} stream rate‑limited – retry ${streamRetryAttempt}/${MAX_STREAM_RETRIES} in ${waitMs} ms`,
               );
 
               // Give the server a breather before retrying.
@@ -1251,7 +1261,7 @@ export class AgentLoop {
               this.onLoading(false);
               return;
             }
-            // Handle OpenAI API quota errors
+            // Handle API quota errors
             if (
               err instanceof Error &&
               (err as { code?: string }).code === "insufficient_quota"
@@ -1263,7 +1273,13 @@ export class AgentLoop {
                 content: [
                   {
                     type: "input_text",
-                    text: `\u26a0 Insufficient quota: ${err instanceof Error && err.message ? err.message.trim() : "No remaining quota."} Manage or purchase credits at https://platform.openai.com/account/billing.`,
+                    text: (() => {
+                      const base = `\u26a0 Insufficient quota: ${err instanceof Error && err.message ? err.message.trim() : "No remaining quota."}`;
+                      const billing = PROVIDER_BILLING_URLS[this.provider.toLowerCase()];
+                      return billing
+                        ? `${base} Manage or purchase credits at ${billing}.`
+                        : `${base} Please check your provider's billing dashboard.`;
+                    })(),
                   },
                 ],
               });
@@ -1464,7 +1480,7 @@ export class AgentLoop {
       if (isNetworkOrServerError) {
         try {
           const msgText =
-            "⚠️  Network error while contacting OpenAI. Please check your connection and try again.";
+            `⚠️  Network error while contacting ${providerName(this.provider)}. Please check your connection and try again.`;
           this.onItem({
             id: `error-${Date.now()}`,
             type: "message",
@@ -1529,7 +1545,7 @@ export class AgentLoop {
             }`,
           ].join(", ");
 
-          const msgText = `⚠️  OpenAI rejected the request${
+          const msgText = `⚠️  ${providerName(this.provider)} rejected the request${
             reqId ? ` (request ID: ${reqId})` : ""
           }. Error details: ${errorDetails}. Please verify your settings and try again.`;
 
