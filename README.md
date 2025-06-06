@@ -32,6 +32,7 @@
   - [Full configuration example](#full-configuration-example)
   - [Custom instructions](#custom-instructions)
   - [Environment variables setup](#environment-variables-setup)
+  - [Gemini provider](#gemini-provider)
 - [FAQ](#faq)
 - [Zero data retention (ZDR) usage](#zero-data-retention-zdr-usage)
 - [Codex open source fund](#codex-open-source-fund)
@@ -475,6 +476,26 @@ export AZURE_OPENAI_API_VERSION="2025-03-01-preview" (Optional)
 export OPENROUTER_API_KEY="your-openrouter-key-here"
 
 # Similarly for other providers
+```
+
+### Gemini provider
+
+Set the required API key for Gemini:
+
+```bash
+export GEMINI_API_KEY="your-gemini-key"
+```
+
+You can override the default endpoint if needed:
+
+```bash
+export GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai" # optional
+```
+
+Run Codex with Gemini via the CLI:
+
+```bash
+codex --provider gemini "hello world"
 ```
 
 ---
